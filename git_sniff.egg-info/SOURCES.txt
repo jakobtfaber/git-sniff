@@ -1,0 +1,15 @@
+README.md
+pyproject.toml
+git_sniff/__init__.py
+git_sniff/client.py
+git_sniff/main.py
+git_sniff/metrics.py
+git_sniff/schemas.py
+git_sniff/server.py
+git_sniff.egg-info/PKG-INFO
+git_sniff.egg-info/SOURCES.txt
+git_sniff.egg-info/dependency_links.txt
+git_sniff.egg-info/entry_points.txt
+git_sniff.egg-info/requires.txt
+git_sniff.egg-info/top_level.txt
+tests/test_metrics.py

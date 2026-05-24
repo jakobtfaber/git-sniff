@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "git-sniff"
+version = "0.1.0"
+description = "Evaluate code quality, architectural health, and maintenance vitality of any GitHub repository before cloning."
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
+    "httpx>=0.24.0",
+    "rich>=13.0.0",
+    "pydantic>=2.0.0",
+    "tomli>=2.0.1; python_version < '3.11'",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+]
+
+[project.scripts]
+git-sniff = "git_sniff.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["git_sniff*"]
