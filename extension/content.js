@@ -259,13 +259,40 @@
     });
   }
 
-  // Hook into GitHub client-side SPA SPA transitions
-  document.addEventListener('turbo:load', initializeDashboard);
+  // SPA navigation: coalesce Turbo, pjax, and React history.pushState signals; re-render only on path change.
+  let lastPath = null;
 
-  // Fallback for initial entry
-  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  function reinitIfChanged() {
+    if (location.pathname === lastPath && document.getElementById('git-sniff-shadow-host')) {
+      return;
+    }
+    lastPath = location.pathname;
     initializeDashboard();
+  }
+
+  let navDebounce = null;
+  function scheduleReinit() {
+    if (navDebounce) clearTimeout(navDebounce);
+    navDebounce = setTimeout(reinitIfChanged, 150);
+  }
+
+  for (const method of ['pushState', 'replaceState']) {
+    const original = history[method];
+    history[method] = function (...args) {
+      const result = original.apply(this, args);
+      window.dispatchEvent(new Event('git-sniff:locationchange'));
+      return result;
+    };
+  }
+
+  window.addEventListener('git-sniff:locationchange', scheduleReinit);
+  window.addEventListener('popstate', scheduleReinit);
+  document.addEventListener('turbo:load', scheduleReinit);
+  document.addEventListener('pjax:end', scheduleReinit);
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    reinitIfChanged();
   } else {
-    window.addEventListener('DOMContentLoaded', initializeDashboard);
+    window.addEventListener('DOMContentLoaded', reinitIfChanged);
   }
 })();

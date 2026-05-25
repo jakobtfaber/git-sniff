@@ -9,9 +9,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         
         console.log(`[git-sniff] Background querying microservice: ${url}`);
         
-        // 15-second connection abort controller to accommodate backend stats compilation budgets
+        // 30-second connection abort controller to accommodate cold GitHub stats compilation budgets
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
 
         const response = await fetch(url, { 
           method: 'GET',

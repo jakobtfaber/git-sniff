@@ -193,14 +193,14 @@ class GitHubClient:
         Fetches contributor stats, implementing a non-blocking 202 Accepted retry loop.
         """
         url = f"https://api.github.com/repos/{owner}/{repo}/stats/contributors"
-        for attempt in range(3):
+        for attempt in range(2):
             try:
                 response = await self._get(url)
                 if response.status_code == 200:
                     return response.json()
                 elif response.status_code == 202:
-                    logger.info("GitHub API returned 202 Accepted. Retrying stats compilation in 2.5s...")
-                    await asyncio.sleep(2.5)
+                    logger.info("GitHub API returned 202 Accepted. Retrying stats compilation in 1.5s...")
+                    await asyncio.sleep(1.5)
                 else:
                     break
             except Exception as e:
