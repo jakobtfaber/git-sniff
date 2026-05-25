@@ -142,6 +142,16 @@ async def sniff_repository(
             rate_limit_warning=limit_warning
         )
 
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 403:
+            raise HTTPException(
+                status_code=403,
+                detail="GitHub API rate limit exceeded. Please set the GITHUB_TOKEN environment variable to bypass this."
+            )
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=f"GitHub API Error: {str(e)}"
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
