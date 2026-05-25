@@ -1,0 +1,6 @@
+{
+  "name": "git-sniff",
+  "version": "0.1.0",
+  "description": "Evaluate code quality, CI/CD rigor, dependency health, maintenance vitality, and bus factor of any public GitHub repository before cloning, forking, or depending on it.",
+  "author": "Jakob Faber"
+}
