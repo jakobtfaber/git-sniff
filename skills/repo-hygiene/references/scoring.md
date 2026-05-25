@@ -98,5 +98,5 @@ score slightly versus a warm run. The score is otherwise deterministic.
 ```
 
 Error responses use `{"detail": "..."}` with HTTP 400 (bad repo format),
-404 (repo not found/private), 403 (GitHub rate limit — set `GITHUB_TOKEN`),
+404 (repo not found/private), 403 (GitHub rate limit — set `GITHUB_PERSONAL_ACCESS_TOKEN`),
 or 500 (engine error).

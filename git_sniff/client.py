@@ -72,7 +72,7 @@ class GitHubClient:
         Surfaces warning if remaining call count drops below 10.
         """
         if self.rate_limit_remaining is not None and self.rate_limit_remaining < 10:
-            return f"[🟡 WARNING] Rate limit critically low ({self.rate_limit_remaining} calls remaining). Please supply GITHUB_TOKEN."
+            return f"[🟡 WARNING] Rate limit critically low ({self.rate_limit_remaining} calls remaining). Please supply GITHUB_PERSONAL_ACCESS_TOKEN."
         return None
 
     async def _get(self, url: str, params: Optional[Dict[str, Any]] = None) -> httpx.Response:

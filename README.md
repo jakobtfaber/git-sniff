@@ -18,7 +18,7 @@ An instant architectural, maintenance, and compliance health scorecard for publi
 
 2. (Optional but Recommended) Set your GitHub Token to bypass rate limits:
    ```bash
-   export GITHUB_TOKEN="your_personal_access_token"
+   export GITHUB_PERSONAL_ACCESS_TOKEN="your_personal_access_token"
    ```
 
 ---

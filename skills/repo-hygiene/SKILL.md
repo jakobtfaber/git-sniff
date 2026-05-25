@@ -35,8 +35,9 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/repo-hygiene/scripts/sniff.sh" <owner>/<repo>
 
 The script ensures the backend (default port 8000) is healthy (starting
 `git-sniff --server` in the background if needed), then issues
-`GET /sniff?repo=<owner>/<repo>` and prints the JSON. It honors `GITHUB_TOKEN`
-from the environment to avoid GitHub's 60-requests/hour unauthenticated cap.
+`GET /sniff?repo=<owner>/<repo>` and prints the JSON. It honors
+`GITHUB_PERSONAL_ACCESS_TOKEN` from the environment to avoid GitHub's
+60-requests/hour unauthenticated cap.
 
 If the script reports `git-sniff not installed` (exit 3), install the package
 first (`pip install -e .` from the git-sniff repo), then retry.
@@ -72,8 +73,8 @@ Map the script's stderr / exit codes and the JSON `detail` field to clear advice
 - **Exit 2 / HTTP 400** — malformed `owner/repo`. Re-extract the slug.
 - **HTTP 404** — repository not found or private. git-sniff only evaluates
   public repos.
-- **HTTP 403** — GitHub rate limit. Advise setting `GITHUB_TOKEN` (a zero-scope
-  classic PAT suffices for public read), then retry.
+- **HTTP 403** — GitHub rate limit. Advise setting `GITHUB_PERSONAL_ACCESS_TOKEN`
+  (a zero-scope classic PAT suffices for public read), then retry.
 - **Exit 3** — backend unavailable / not installed (see step 2).
 - **Exit 4 / HTTP 500** — engine error; report the `detail` message.
 

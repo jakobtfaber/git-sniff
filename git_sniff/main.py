@@ -29,7 +29,7 @@ async def sniff_cli(repo: str):
         sys.exit(1)
     
     owner, repo_name = repo.split("/")
-    token = os.getenv("GITHUB_TOKEN")
+    token = os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
     
     with console.status(f"[bold blue]Sniffing repository {owner}/{repo_name}...[/bold blue]"):
         try:

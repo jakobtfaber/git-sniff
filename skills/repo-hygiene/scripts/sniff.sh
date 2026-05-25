@@ -7,7 +7,8 @@
 #
 # Behavior: reuses a running git-sniff server on the target port; if none is
 # running, starts one in the background and waits for it to become healthy.
-# Honors GITHUB_TOKEN from the environment to lift GitHub's 60/hr unauth cap.
+# Honors GITHUB_PERSONAL_ACCESS_TOKEN from the environment (server-side) to lift
+# GitHub's 60/hr unauthenticated cap.
 
 set -euo pipefail
 

@@ -56,7 +56,7 @@ app.add_middleware(
 
 def get_gh_client() -> GitHubClient:
     """Dependency injection helper supplying the shared HTTPX client and Token."""
-    token = os.getenv("GITHUB_TOKEN")
+    token = os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
     return GitHubClient(token=token, http_client=ServerState.http_client)
 
 @app.get("/sniff", response_model=RepoScorecard)
@@ -146,7 +146,7 @@ async def sniff_repository(
         if e.response.status_code == 403:
             raise HTTPException(
                 status_code=403,
-                detail="GitHub API rate limit exceeded. Please set the GITHUB_TOKEN environment variable to bypass this."
+                detail="GitHub API rate limit exceeded. Please set the GITHUB_PERSONAL_ACCESS_TOKEN environment variable to bypass this."
             )
         raise HTTPException(
             status_code=e.response.status_code,
