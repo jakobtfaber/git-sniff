@@ -21,7 +21,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         clearTimeout(timeoutId);
 
         if (!response.ok) {
-          throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+          let serverMsg = `HTTP Error ${response.status}: ${response.statusText}`;
+          try {
+            const errData = await response.json();
+            if (errData && errData.detail) {
+              serverMsg = errData.detail;
+            }
+          } catch (e) {
+            // Non-JSON response, fallback to default
+          }
+          throw new Error(serverMsg);
         }
 
         const data = await response.json();
