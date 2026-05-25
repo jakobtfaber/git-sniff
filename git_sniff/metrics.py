@@ -166,53 +166,111 @@ def calculate_cicd_score(
 
     return score, ", ".join(details)
 
+# Reproducible-install lockfiles across ecosystems (matched by basename).
+LOCKFILES = {
+    "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json",
+    "poetry.lock", "pipfile.lock", "uv.lock", "pdm.lock", "conda-lock.yml",
+    "cargo.lock", "go.sum", "gemfile.lock", "composer.lock", "flake.lock",
+}
+# Declared-dependency manifests (matched by basename; requirements*.txt handled separately).
+MANIFESTS = {
+    "package.json", "pyproject.toml", "cargo.toml", "go.mod", "setup.py",
+    "setup.cfg", "environment.yml", "environment.yaml", "pipfile", "gemfile",
+    "pom.xml", "build.gradle", "composer.json",
+}
+# Automated dependency-update tool configs (matched by basename, e.g. .github/dependabot.yml).
+AUTOMATION_CONFIGS = {
+    "dependabot.yml", "dependabot.yaml", "renovate.json", "renovate.json5",
+    ".renovaterc", ".renovaterc.json",
+}
+
+def _recent_bot_share(commits_data: List[Dict[str, Any]]) -> float:
+    """Share of the last 50 commits authored by Dependabot/Renovate."""
+    recent_commits = commits_data[:50]
+    sample_size = len(recent_commits)
+    if sample_size == 0:
+        return 0.0
+    bot_commits = 0
+    for c in recent_commits:
+        author_login = ((c.get("author") or {}).get("login") or "").lower()
+        author_name = (((c.get("commit") or {}).get("author") or {}).get("name") or "").lower()
+        if "dependabot" in author_login or "dependabot" in author_name \
+                or "renovate" in author_login or "renovate" in author_name:
+            bot_commits += 1
+    return bot_commits / sample_size
+
 def calculate_dependency_score(
     commits_data: List[Dict[str, Any]],
-    dependencies_count: int
+    dependencies_count: int,
+    file_paths: Optional[List[str]] = None
 ) -> Tuple[int, str]:
     """
     Pillar 3: Dependency Hygiene (Weight: 20%)
-    Profiles bot authors in up to the last 50 commits to award active dependency management (+100).
-    Applies dependency count bloat penalty if dependencies > 40 (-10).
+
+    Additive partial-credit model over deterministic, repository-state signals
+    (capped at 100), replacing the prior all-or-nothing bot-commit proxy that
+    returned 0 for ~80% of actively-developed repos regardless of ownership:
+      - Manifest declared            +20
+      - Lockfile present             +30
+      - Leanness (by declared count) +0..30 (neutral +15 when count unknown)
+      - Automated updates            +20 (Dependabot/Renovate config file, or
+                                          >=10% recent bot-authored commits)
+    Automation is detected primarily from the config file in the tree, which is
+    stable, rather than from the commit window, which is timing-sensitive.
     """
-    total_commits = len(commits_data)
-    if total_commits == 0:
-        bot_share = 0.0
+    file_paths = file_paths or []
+    basenames = {p.rsplit("/", 1)[-1].lower() for p in file_paths}
+
+    has_manifest = bool(basenames & MANIFESTS) or any(
+        b.startswith("requirements") and b.endswith(".txt") for b in basenames
+    )
+    has_lockfile = bool(basenames & LOCKFILES)
+    has_automation_config = bool(basenames & AUTOMATION_CONFIGS)
+    bot_share = _recent_bot_share(commits_data)
+    has_bot_activity = bot_share >= 0.10
+
+    score = 0
+    parts: List[str] = []
+
+    if has_manifest:
+        score += 20
+        parts.append("manifest declared")
     else:
-        # Restrict to last 50 commits
-        recent_commits = commits_data[:50]
-        sample_size = len(recent_commits)
-        
-        bot_commits = 0
-        for c in recent_commits:
-            author_obj = c.get("author") or {}
-            author_login = (author_obj.get("login") or "").lower()
-            
-            commit_obj = c.get("commit") or {}
-            git_author = commit_obj.get("author") or {}
-            author_name = (git_author.get("name") or "").lower()
-            
-            # Check for dependabot and renovate logins or git signature names
-            is_dependabot = "dependabot" in author_login or "dependabot" in author_name
-            is_renovate = "renovate" in author_login or "renovate" in author_name
-            
-            if is_dependabot or is_renovate:
-                bot_commits += 1
-        
-        denominator = min(50, sample_size)
-        bot_share = bot_commits / denominator if denominator > 0 else 0.0
+        parts.append("no dependency manifest found")
 
-    # 10% or more -> 100 points
-    base_score = 100 if bot_share >= 0.10 else 0
-    desc = f"Dependabot/Renovate active (bot share: {bot_share * 100:.1f}%)" if base_score == 100 else f"No active automated dependency manager (bot share: {bot_share * 100:.1f}%)"
+    if has_lockfile:
+        score += 30
+        parts.append("lockfile present")
+    else:
+        parts.append("no lockfile (non-reproducible installs)")
 
-    # Dependency Count Bloat Penalty
-    if dependencies_count > 40:
-        base_score -= 10
-        desc += f" [Dependency Bloat Penalty: {dependencies_count} dependencies]"
+    if dependencies_count > 0:
+        if dependencies_count <= 10:
+            score += 30
+            parts.append(f"lean ({dependencies_count} deps)")
+        elif dependencies_count <= 25:
+            score += 20
+            parts.append(f"moderate ({dependencies_count} deps)")
+        elif dependencies_count <= 50:
+            score += 10
+            parts.append(f"heavy ({dependencies_count} deps)")
+        else:
+            parts.append(f"bloated ({dependencies_count} deps)")
+    else:
+        score += 15
+        parts.append("dependency count not assessable")
 
-    score = max(0, min(100, base_score))
-    return score, desc
+    if has_automation_config or has_bot_activity:
+        score += 20
+        if has_automation_config:
+            parts.append("Dependabot/Renovate configured")
+        else:
+            parts.append(f"automated updates active (bot share {bot_share * 100:.0f}%)")
+    else:
+        parts.append("no automated dependency updates")
+
+    score = max(0, min(100, score))
+    return score, ", ".join(parts)
 
 def calculate_bus_factor_score(
     contributors_data: List[Dict[str, Any]]

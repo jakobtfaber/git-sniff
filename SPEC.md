@@ -75,10 +75,13 @@ The engine must pull raw data from GitHub and calculate an aggregate score from 
 
 ### **Pillar 3: Dependency Hygiene (Weight: 20%)**
 
-* **Endpoint:** /repos/{owner}/{repo}/commits?per\_page=50  
-* **Logic:** Evaluate automated maintenance and ecosystem health.  
-  * Scan authors of the last 50 commits. If dependabot\[bot\] or renovate\[bot\] is responsible for at least $10\\%$ of recent commits, award $100\\text{ pts}$ for active dependency management.  
-  * Scan for manifest files (pyproject.toml, package.json, Cargo.toml). Count the total number of root dependencies. If dependencies $\> 40$, apply a $-10$ point "dependency bloat penalty."
+* **Endpoint:** recursive Git tree + /repos/{owner}/{repo}/commits?per\_page=50  
+* **Logic:** Evaluate dependency hygiene via additive partial credit over deterministic repository-state signals (capped at $100$):  
+  * **Manifest declared** ($+20$): any dependency manifest in the tree (pyproject.toml, package.json, Cargo.toml, go.mod, requirements\*.txt, setup.py/cfg, Pipfile, Gemfile, pom.xml, build.gradle, composer.json, …).  
+  * **Lockfile present** ($+30$): any reproducible-install lockfile (package-lock.json, yarn.lock, pnpm-lock.yaml, poetry.lock, uv.lock, Cargo.lock, go.sum, composer.lock, flake.lock, …).  
+  * **Leanness** by parsed root dependency count: $\\le 10 \\to +30$, $\\le 25 \\to +20$, $\\le 50 \\to +10$, $\> 50 \\to +0$; count not parseable $\\to$ neutral $+15$.  
+  * **Automated updates** ($+20$): a Dependabot/Renovate **config file** in the tree, or dependabot\[bot\]/renovate\[bot\] authoring $\\ge 10\\%$ of the last 50 commits.  
+  * Rationale: the prior all-or-nothing bot-commit proxy returned $0$ for $\\sim 80\\%$ of actively-developed repos (corporate and academic alike), measuring commit-window timing rather than hygiene. Config-file detection is stable; partial credit stops zeroing clean repos that lack bots.
 
 ### **Pillar 4: The Bus Factor / Sustenance Risk (Weight: 25%)**
 

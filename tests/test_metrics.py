@@ -154,51 +154,56 @@ def test_cicd_score():
 # Pillar 3: Dependency Hygiene Tests
 # ==============================================================================
 
-def test_dependency_score_bot_share():
-    # 10% or more bot commits (e.g. 5 out of 50) -> 100 points
-    commits = []
-    for i in range(45):
-        commits.append({"author": {"login": "dev-user"}, "commit": {"author": {"name": "Dev User"}}})
-    for i in range(5):
-        commits.append({"author": {"login": "dependabot[bot]"}, "commit": {"author": {"name": "dependabot[bot]"}}})
-
-    score, desc = calculate_dependency_score(commits, dependencies_count=10)
+def test_dependency_full_hygiene():
+    # manifest +20, lockfile +30, lean (<=10) +30, bot activity +20 -> 100
+    commits = [{"author": {"login": "dependabot[bot]"}, "commit": {"author": {"name": "dependabot[bot]"}}}]
+    score, desc = calculate_dependency_score(
+        commits, dependencies_count=8, file_paths=["package.json", "package-lock.json"]
+    )
     assert score == 100
-    assert "active" in desc.lower()
-
-    # Under 10% bot commits -> 0 points
-    commits_under = []
-    for i in range(48):
-        commits_under.append({"author": {"login": "dev-user"}, "commit": {"author": {"name": "Dev User"}}})
-    for i in range(2):
-        commits_under.append({"author": {"login": "dependabot[bot]"}, "commit": {"author": {"name": "dependabot[bot]"}}})
-    score, _ = calculate_dependency_score(commits_under, dependencies_count=10)
-    assert score == 0
+    assert "lockfile present" in desc
+    assert "lean" in desc
 
 
-def test_dependency_score_bloat_penalty():
-    # 10% bot commits (100 pts) but dependency count > 40 -> 90 points
-    commits = [{"author": {"login": "dependabot[bot]"}, "commit": {"author": {"name": "dependabot"}}}]
-    score, desc = calculate_dependency_score(commits, dependencies_count=45)
-    assert score == 90
-    assert "bloat penalty" in desc.lower()
-
-    # Under 10% bot commits (0 pts) and >40 dependencies -> clamps to 0
-    score, _ = calculate_dependency_score([], dependencies_count=50)
-    assert score == 0
+def test_dependency_no_automation_is_not_zero():
+    # The core regression: a clean repo with no Dependabot must NOT score 0.
+    # manifest +20, lockfile +30, lean +30, no automation +0 -> 80
+    score, desc = calculate_dependency_score(
+        [], dependencies_count=8, file_paths=["pyproject.toml", "poetry.lock"]
+    )
+    assert score == 80
+    assert "no automated dependency updates" in desc
 
 
-def test_dependency_score_dynamic_denominator():
-    # If project only has 5 commits, and 1 is a bot -> 20% share >= 10% -> 100 points
-    commits = [
-        {"author": {"login": "dev"}, "commit": {"author": {"name": "dev"}}},
-        {"author": {"login": "dev"}, "commit": {"author": {"name": "dev"}}},
-        {"author": {"login": "dev"}, "commit": {"author": {"name": "dev"}}},
-        {"author": {"login": "dev"}, "commit": {"author": {"name": "dev"}}},
-        {"author": {"login": "renovate[bot]"}, "commit": {"author": {"name": "Renovate Bot"}}},
-    ]
-    score, _ = calculate_dependency_score(commits, dependencies_count=5)
+def test_dependency_automation_via_config_file():
+    # Dependabot config in the tree counts even with zero recent bot commits
+    # (the timing-window fix). manifest +20, lockfile +30, lean +30, config +20 -> 100
+    score, desc = calculate_dependency_score(
+        [], dependencies_count=5,
+        file_paths=["package.json", "package-lock.json", ".github/dependabot.yml"]
+    )
     assert score == 100
+    assert "Dependabot/Renovate configured" in desc
+
+
+def test_dependency_bloat_and_no_lockfile():
+    # manifest +20, no lockfile +0, bloated (>50) +0, no automation +0 -> 20
+    score, desc = calculate_dependency_score(
+        [], dependencies_count=60, file_paths=["package.json"]
+    )
+    assert score == 20
+    assert "bloated" in desc
+    assert "no lockfile" in desc
+
+
+def test_dependency_unknown_count_neutral():
+    # go.mod has no parseable count in the engine -> neutral leanness +15.
+    # manifest +20, lockfile +30 (go.sum), neutral +15, no automation +0 -> 65
+    score, desc = calculate_dependency_score(
+        [], dependencies_count=0, file_paths=["go.mod", "go.sum"]
+    )
+    assert score == 65
+    assert "not assessable" in desc
 
 
 # ==============================================================================

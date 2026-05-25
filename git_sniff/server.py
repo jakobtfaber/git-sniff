@@ -113,7 +113,7 @@ async def sniff_repository(
         # Calculate Pillars
         m_score, m_desc = calculate_maintenance_score(issues, stars, open_issues)
         c_score, c_desc = calculate_cicd_score(file_paths, status, pyproject_linting)
-        d_score, d_desc = calculate_dependency_score(commits, deps_count)
+        d_score, d_desc = calculate_dependency_score(commits, deps_count, file_paths)
         b_score, b_desc = calculate_bus_factor_score(contributors)
 
         # Calculate Overall Scorecard
