@@ -9,9 +9,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         
         console.log(`[git-sniff] Background querying microservice: ${url}`);
         
-        // 5-second connection abort controller
+        // 15-second connection abort controller to accommodate backend stats compilation budgets
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
 
         const response = await fetch(url, { 
           method: 'GET',
@@ -30,12 +30,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.error('[git-sniff] Background Fetch Failed:', error);
         
         let errorMsg = 'Failed to connect to the git-sniff local service.';
-        if (error.name === 'AbortError') {
-          errorMsg = 'Connection timed out. Please check if your backend is running.';
-        } else if (error.message.includes('Failed to fetch')) {
+        const errName = error && error.name ? error.name : '';
+        const errMsg = error && error.message ? error.message : String(error);
+
+        if (errName === 'AbortError') {
+          errorMsg = 'Connection timed out. The server is taking too long to compile statistics.';
+        } else if (errMsg.includes('Failed to fetch') || errMsg.includes('Failed to connect') || errMsg.includes('NetworkError')) {
           errorMsg = 'Connection refused. Is the git-sniff server running on the configured port?';
         } else {
-          errorMsg = error.message;
+          errorMsg = errMsg;
         }
         
         sendResponse({ success: false, error: errorMsg });
