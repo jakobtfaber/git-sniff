@@ -1,14 +1,12 @@
 {
   "manifest_version": 3,
   "name": "git-sniff Scorecard",
-  "version": "1.0.0",
-  "description": "Premium git-sniff scorecard running directly on GitHub, querying the local microservice backend.",
+  "version": "2.0.0",
+  "description": "Premium git-sniff scorecard on GitHub, served by an on-demand native messaging host.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwSUCLonPxS3WEdsQ2QlmErd/bLg4dJW67oddbp4P4YGoWw7tslEd8Qv/euZbmaOW+KYfOyhQLNJnNXvfT9tH2ROWx3j67XdsIkU82nbXAzxm7WTF8Rnd+/DaHpEchhtiYahClc68aTMbSqNXVSWVYrtPvOCVGU4hktoKn1zjoCA42kHr3uIGg1itv0jxWu0v//Dz48PICIPSldPXmD1hd19gYt1uCfl6URcSSfnJhidvsooHDsLl18MpqIk4c1H23/CWOXFVstepnTEh3QmAIenaOUkZ9rGhU3ObDJu6koWrbUwPr5zXFB6O3dpxvA2YKlDlA1wI6VOLXnRl06gVdQIDAQAB",
   "permissions": [
-    "storage"
-  ],
-  "host_permissions": [
-    "http://127.0.0.1/*",
-    "http://localhost/*"
+    "storage",
+    "nativeMessaging"
   ],
   "background": {
     "service_worker": "background.js"
