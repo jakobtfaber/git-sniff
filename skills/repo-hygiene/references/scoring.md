@@ -83,7 +83,8 @@ score slightly versus a warm run. The score is otherwise deterministic.
 
 ## Response shape
 
-`GET /sniff?repo=owner/repo` returns:
+`git-sniff --json owner/repo` (used by the repo-hygiene skill's `sniff.sh`)
+prints on success (exit 0):
 
 ```json
 {
@@ -97,6 +98,6 @@ score slightly versus a warm run. The score is otherwise deterministic.
 }
 ```
 
-Error responses use `{"detail": "..."}` with HTTP 400 (bad repo format),
-404 (repo not found/private), 403 (GitHub rate limit — set `GITHUB_PERSONAL_ACCESS_TOKEN`),
-or 500 (engine error).
+On failure it prints `{"error": "..."}` and exits 1 — covering bad repo format,
+repo not found/private, GitHub rate limit (set `GITHUB_PERSONAL_ACCESS_TOKEN` or
+store a token in the Keychain), and engine errors.

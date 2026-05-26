@@ -1,14 +1,16 @@
 import sys
+import json
 import argparse
 import asyncio
 import logging
 
-import uvicorn
 from rich.console import Console
 
-from git_sniff.engine import evaluate_detailed, parse_repo
+from git_sniff.engine import evaluate, evaluate_detailed, parse_repo
 from git_sniff.auth import resolve_token
-from git_sniff.schemas import BadRepoError, RepoNotFoundError, RateLimitedError, EngineError
+from git_sniff.schemas import (
+    GitSniffError, BadRepoError, RepoNotFoundError, RateLimitedError, EngineError
+)
 
 console = Console()
 logging.basicConfig(level=logging.WARNING)
@@ -87,6 +89,18 @@ async def sniff_cli(repo: str):
         
     console.print("================================================================================", style="bold blue")
 
+
+async def sniff_json(repo: str) -> int:
+    try:
+        owner, repo_name = parse_repo(repo)
+        scorecard = await evaluate(owner, repo_name, token=resolve_token())
+    except GitSniffError as e:
+        print(json.dumps({"error": str(e)}))
+        return 1
+    print(scorecard.model_dump_json())
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="git-sniff: Instant quality, architecture, and sustenance metrics scorecard for GitHub repositories."
@@ -97,22 +111,15 @@ def main():
         help="The public GitHub repository formatted as owner/repo (e.g. langchain-ai/deepagents)"
     )
     parser.add_argument(
-        "--server",
+        "--json",
         action="store_true",
-        help="Start the background microservice API server"
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=8000,
-        help="Port to run the API server on (default: 8000)"
+        help="Emit the scorecard as JSON on stdout (for scripting); prints {\"error\": ...} and exits 1 on failure."
     )
 
     args = parser.parse_args()
 
-    if args.server:
-        console.print(f"[bold green]Starting git-sniff microservice on http://127.0.0.1:{args.port}...[/bold green]")
-        uvicorn.run("git_sniff.server:app", host="127.0.0.1", port=args.port, log_level="info")
+    if args.repository and args.json:
+        sys.exit(asyncio.run(sniff_json(args.repository)))
     elif args.repository:
         asyncio.run(sniff_cli(args.repository))
     else:

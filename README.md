@@ -1,6 +1,6 @@
 # git-sniff
 
-An instant architectural, maintenance, and compliance health scorecard for public GitHub repositories. Query repo stats in your terminal before cloning, or run the local background microservice to support web-extension querying.
+An instant architectural, maintenance, and compliance health scorecard for public GitHub repositories. Query repo stats in your terminal before cloning, emit them as JSON for scripting, or surface them on GitHub via a Chrome extension backed by an on-demand native-messaging host.
 
 ---
 
@@ -31,21 +31,11 @@ Check any public repository instantly in your terminal:
 git-sniff langchain-ai/deepagents
 ```
 
-### 2. Server Mode
-
-> **Deprecated.** The Chrome extension no longer uses this HTTP server — it uses Chrome
-> Native Messaging (see below). `--server` is retained only for CLI scripting / curl and
-> will be removed once `skills/repo-hygiene/scripts/sniff.sh` migrates off HTTP.
-
-Launch the local FastAPI background microservice:
+### 2. JSON Mode (scripting)
+Emit the scorecard as JSON on stdout — for piping into `jq`, CI, or the
+`repo-hygiene` skill. Prints `{"error": "..."}` and exits 1 on failure:
 ```bash
-git-sniff --server
-```
-By default, the server runs on `http://127.0.0.1:8000`.
-
-To query the microservice:
-```bash
-curl "http://127.0.0.1:8000/sniff?repo=langchain-ai/deepagents"
+git-sniff --json langchain-ai/deepagents
 ```
 
 ### 3. Chrome extension (Native Messaging)
@@ -82,7 +72,7 @@ See `SPEC.md` for exact boundaries and the rationale behind the dependency-pilla
 
 ## Claude Code plugin & skill
 
-This repo is also a Claude Code plugin (`.claude-plugin/plugin.json`) bundling the **`repo-hygiene`** skill (`skills/repo-hygiene/`). The skill lets Claude score a repo's hygiene on request ("is this repo worth cloning?", "what's the bus factor of …"). It calls the local `/sniff` microservice via `skills/repo-hygiene/scripts/sniff.sh` (which auto-starts the server if needed) and interprets results using `skills/repo-hygiene/references/scoring.md`.
+This repo is also a Claude Code plugin (`.claude-plugin/plugin.json`) bundling the **`repo-hygiene`** skill (`skills/repo-hygiene/`). The skill lets Claude score a repo's hygiene on request ("is this repo worth cloning?", "what's the bus factor of …"). It calls `git-sniff --json` via `skills/repo-hygiene/scripts/sniff.sh` and interprets results using `skills/repo-hygiene/references/scoring.md`.
 
 ## Authentication
 
