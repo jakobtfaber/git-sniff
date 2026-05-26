@@ -73,7 +73,7 @@ The engine must pull raw data from GitHub and calculate an aggregate score from 
   * Check for configuration files (.pre-commit-config.yaml, .eslintrc\*, pyproject.toml with linting sections, or .markdownlint.json) $\\rightarrow \+30\\text{ pts}$  
   * Verify if the latest commit check state is success $\\rightarrow \+30\\text{ pts}$ (Partial credit: pending \= $15\\text{ pts}$, failure \= $0\\text{ pts}$).
 
-### **Pillar 3: Dependency Hygiene (Weight: 20%)**
+### **Pillar 3: Dependency Hygiene (Weight: 15%)**
 
 * **Endpoint:** recursive Git tree + /repos/{owner}/{repo}/commits?per\_page=50  
 * **Logic:** Evaluate dependency hygiene via additive partial credit over deterministic repository-state signals (capped at $100$):  
@@ -83,7 +83,7 @@ The engine must pull raw data from GitHub and calculate an aggregate score from 
   * **Automated updates** ($+20$): a Dependabot/Renovate **config file** in the tree, or dependabot\[bot\]/renovate\[bot\] authoring $\\ge 10\\%$ of the last 50 commits.  
   * Rationale: the prior all-or-nothing bot-commit proxy returned $0$ for $\\sim 80\\%$ of actively-developed repos (corporate and academic alike), measuring commit-window timing rather than hygiene. Config-file detection is stable; partial credit stops zeroing clean repos that lack bots.
 
-### **Pillar 4: The Bus Factor / Sustenance Risk (Weight: 25%)**
+### **Pillar 4: The Bus Factor / Sustenance Risk (Weight: 30%)**
 
 * **Endpoint:** /repos/{owner}/{repo}/stats/contributors  
 * **Logic:** \* Extract total additions/deletions or commit counts for the top 10 contributors over the last year.  

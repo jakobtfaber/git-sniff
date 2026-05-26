@@ -11,8 +11,8 @@ Overall is a weighted average of the four pillars (each 0–100), rounded:
 |---|---|
 | Maintenance Vitality | 30% |
 | CI/CD & Engineering Rigor | 25% |
-| Dependency Hygiene | 20% |
-| Bus Factor Sustainability | 25% |
+| Dependency Hygiene | 15% |
+| Bus Factor Sustainability | 30% |
 
 Status thresholds on the overall score:
 
@@ -45,7 +45,7 @@ Additive, capped at 100:
 - **+30** linter/format config present (`.pre-commit-config.yaml`, `.markdownlint.json`, any `eslintrc`, or a `pyproject.toml` with a `[tool.{black,ruff,flake8,isort,pylint,mypy}]` section).
 - **Status checks** on the default branch: success **+30**, pending **+15**, none/failure **+0**.
 
-## Pillar 3 — Dependency Hygiene (20%)
+## Pillar 3 — Dependency Hygiene (15%)
 
 Additive partial credit over deterministic repository-state signals, capped at 100:
 
@@ -64,7 +64,7 @@ timing, not hygiene. Automation is now detected from the **config file** (stable
 rather than the commit window (timing-sensitive), and manifest/lockfile/leanness
 give partial credit so a clean repo without bots is no longer scored zero.
 
-## Pillar 4 — Bus Factor Sustainability (25%)
+## Pillar 4 — Bus Factor Sustainability (30%)
 
 Velocity concentration across contributors (top contributor's share of total contributions):
 

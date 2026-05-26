@@ -205,7 +205,7 @@ def calculate_dependency_score(
     file_paths: Optional[List[str]] = None
 ) -> Tuple[int, str]:
     """
-    Pillar 3: Dependency Hygiene (Weight: 20%)
+    Pillar 3: Dependency Hygiene (Weight: 15%)
 
     Additive partial-credit model over deterministic, repository-state signals
     (capped at 100), replacing the prior all-or-nothing bot-commit proxy that
@@ -276,7 +276,7 @@ def calculate_bus_factor_score(
     contributors_data: List[Dict[str, Any]]
 ) -> Tuple[int, str]:
     """
-    Pillar 4: The Bus Factor / Sustenance Risk (Weight: 25%)
+    Pillar 4: The Bus Factor / Sustenance Risk (Weight: 30%)
     Identifies velocity concentration. Uses a watertight non-overlapping decision tree
     with an 80 pts fallback to handle all distribution configurations.
     """
@@ -327,8 +327,8 @@ def calculate_overall_score(
     weighted_score = (
         0.30 * maintenance +
         0.25 * cicd +
-        0.20 * dependencies +
-        0.25 * bus_factor
+        0.15 * dependencies +
+        0.30 * bus_factor
     )
     score = max(0, min(100, round(weighted_score)))
     

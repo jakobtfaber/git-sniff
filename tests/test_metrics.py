@@ -281,14 +281,14 @@ def test_bus_factor_fallback_scenarios():
 def test_overall_score_calculation():
     # Overall score = 30% * M + 25% * C + 20% * D + 25% * B
     # e.g., M=90, C=100, D=75, B=85
-    # Expected: 0.30*90 + 0.25*100 + 0.20*75 + 0.25*85 = 27 + 25 + 15 + 21.25 = 88.25 -> rounded to 88
+    # Expected: 0.30*90 + 0.25*100 + 0.15*75 + 0.30*85 = 27 + 25 + 11.25 + 25.5 = 88.75 -> rounded to 89
     score, status, rec = calculate_overall_score(
         maintenance=90,
         cicd=100,
         dependencies=75,
         bus_factor=85
     )
-    assert score == 88
+    assert score == 89
     assert status == "HEALTHY"
     assert "production ready" in rec.lower()
 

@@ -50,8 +50,8 @@ curl "http://127.0.0.1:8000/sniff?repo=langchain-ai/deepagents"
 `git-sniff` aggregates scores from 0 to 100 based on four pillars:
 1. **Maintenance Vitality (30%)**: Analyzes recent Issue/PR Median Time to Resolution (MTR) and stagnation penalties.
 2. **CI/CD & Rigor Compliance (25%)**: Scans file tree recursively for active `.github/workflows/`, code standards configs (e.g. pre-commit, linters), and latest commit check statuses.
-3. **Dependency Hygiene (20%)**: Additive partial credit over deterministic repository state — manifest declared (+20), lockfile present (+30), leanness by declared dependency count (+0–30, neutral when unparseable), and automated updates (+20, detected from a Dependabot/Renovate config file in the tree or recent bot commits).
-4. **Sustenance Risk / Bus Factor (25%)**: Analyzes velocity distribution among maintainers to highlight single-point-of-failure risks.
+3. **Dependency Hygiene (15%)**: Additive partial credit over deterministic repository state — manifest declared (+20), lockfile present (+30), leanness by declared dependency count (+0–30, neutral when unparseable), and automated updates (+20, detected from a Dependabot/Renovate config file in the tree or recent bot commits).
+4. **Sustenance Risk / Bus Factor (30%)**: Analyzes velocity distribution among maintainers to highlight single-point-of-failure risks.
 
 See `SPEC.md` for exact boundaries and the rationale behind the dependency-pillar model.
 
