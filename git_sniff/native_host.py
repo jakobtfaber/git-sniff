@@ -20,7 +20,7 @@ HOST_TIMEOUT = 30
 MAX_MESSAGE_BYTES = 1 << 20
 
 HOST_NAME = "com.jakobtfaber.git_sniff"
-EXTENSION_ID = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"  # placeholder; set in Task 9
+EXTENSION_ID = "nbhaknefbgabonfbnjeccpcpkikjoboc"  # pinned via extension/manifest.json "key"
 CHROME_NM_DIR = (
     Path.home()
     / "Library" / "Application Support" / "Google" / "Chrome" / "NativeMessagingHosts"

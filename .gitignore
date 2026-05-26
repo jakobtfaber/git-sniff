@@ -16,3 +16,6 @@ dist/
 
 # macOS
 .DS_Store
+
+# Chrome extension private key — never commit
+extension/key.pem
