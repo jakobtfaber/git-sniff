@@ -113,8 +113,11 @@ shell env).
 ## Native messaging protocol
 
 Transport: `chrome.runtime.sendNativeMessage(hostName, message, callback)` — one-shot.
-Chrome spawns the host, delivers one message, waits for one reply, then closes stdin and
-the host exits. This matches the request/response scorecard with no persistent port.
+Chrome spawns a fresh host process per call, delivers one message, and treats the host's
+first reply as the response. The host then **detects stdin EOF (read returns 0) and exits
+on its own** when Chrome closes the pipe — Chrome does not guarantee an immediate kill, so
+the host owns its exit. This matches the request/response scorecard with no persistent
+port.
 
 ### Wire framing
 
@@ -122,8 +125,9 @@ the host exits. This matches the request/response scorecard with no persistent p
   JSON. (On macOS this is little-endian in practice, but the Chrome spec mandates native
   byte order; implement with explicit `struct.pack("@I", n)` / `struct.unpack("@I", …)`
   helpers and test the round trip.)
-- Chrome → host message max **1 MB**; host → Chrome response max **1 MB**. A
-  `RepoScorecard` is well under this bound.
+- Size limits are **asymmetric**: Chrome → host request max **64 MiB**; host → Chrome
+  response max **1 MB**. The `{owner,repo}` request and the `RepoScorecard` reply are both
+  far under their respective bounds.
 
 ### Messages
 
@@ -138,6 +142,11 @@ the host exits. This matches the request/response scorecard with no persistent p
 In host mode the process writes **only** framed JSON messages to stdout. All logging
 goes to **stderr**. A stray `print()` or library banner on stdout corrupts the stream
 and breaks the extension — enforced by test (see Testing).
+
+stdout must be **binary and explicitly flushed**: write the `struct.pack("@I", n)` length
+prefix and the UTF-8 payload to `sys.stdout.buffer` (never text-mode stdout — newline
+translation would mangle the length bytes) and call `.flush()` after the reply. Read the
+request from `sys.stdin.buffer` likewise.
 
 ### Host-side timeout
 
@@ -179,6 +188,9 @@ Target **Google Chrome on macOS only** this pass:
 ~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.jakobtfaber.git_sniff.json
 ```
 
+(System-wide alternative, not used this pass:
+`/Library/Google/Chrome/NativeMessagingHosts/<name>.json`.)
+
 Manifest body (exact):
 
 ```json
@@ -206,8 +218,11 @@ Unpacked extensions otherwise get a path-derived ID that drifts across loads/mac
 - Pin the ID with a `"key"` field in `extension/manifest.json` (base64 public key). The
   ID is the deterministic hash Chrome derives from that key.
 - **Key production (documented in the spec/README):** generate an RSA keypair; the
-  manifest `key` is the base64-encoded DER public key; the extension ID is computed from
-  it (Chrome's hashed-key → 32-char `a-p` mapping). Record the resulting ID once.
+  manifest `key` is the base64-encoded DER **public** key (SubjectPublicKeyInfo). The
+  extension ID = first 128 bits (first 32 hex chars) of `SHA-256(public-key DER)`, each hex
+  nibble `0–f` mapped to `a–p`. The private key is **never** committed. (Chrome's official
+  `manifest/key` doc omits the algorithm; derivation per Chromium/community sources.)
+  Record the resulting ID once.
 - **Shared constant:** the pinned ID lives in **one** place the installer reads —
   `git_sniff/native_host.py` holds `EXTENSION_ID` and `HOST_NAME =
   "com.jakobtfaber.git_sniff"`, and the installer writes `allowed_origins` from it.
@@ -219,7 +234,8 @@ Unpacked extensions otherwise get a path-derived ID that drifts across loads/mac
 
 **`manifest.json`:**
 - Remove `host_permissions` localhost entries (`manifest.json:9-12`).
-- Add `"nativeMessaging"` to `permissions`.
+- Add `"nativeMessaging"` to `permissions` (triggers a user-facing install/reload warning,
+  "Communicate with cooperating native applications" — expected, document in README).
 - Add the pinned `"key"`.
 
 **`background.js`:** replace the `fetch(...)` block (lines 5-37) with:
@@ -282,6 +298,20 @@ dependencies once **both** hold:
 2. there are no known curl-based `/sniff` consumers.
 
 Until then the server remains as a deprecated manual adapter.
+
+## Operational caveats
+
+- **Stale `path` after env changes.** The manifest `path` is the resolved `git-sniff-host`
+  console script; a Python/venv/conda reinstall can move the interpreter and invalidate the
+  baked shebang. Re-running `git-sniff-host --install` is the documented remedy; `--status`
+  flags a non-existent/non-executable path.
+- **Gatekeeper/quarantine.** A pip-installed console script is not quarantined, so this
+  design is low-risk. If the host is ever repackaged as a downloaded binary/app, a
+  `com.apple.quarantine` xattr makes Chrome's spawn fail silently (surfaces only as
+  `chrome.runtime.lastError`).
+- **SW killed mid-call.** One-shot `sendNativeMessage` has no resumption if the MV3 service
+  worker is terminated for an unrelated reason mid-query; bounded by the 30 s host deadline
+  and treated as a known, surfaced failure (not silent).
 
 ## Out of scope (YAGNI)
 
