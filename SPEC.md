@@ -1,5 +1,7 @@
 This is a comprehensive, production-ready spec-driven document designed for an LLM coding engineer (you) to implement git-sniff in one go. Follow it strictly.
 
+> **Historical.** The "Server Mode" / FastAPI microservice described below was the original transport. It has since been removed: the Chrome extension uses Native Messaging and the CLI exposes a `--json` mode. See `docs/decisions/0001-native-messaging-transport.md`. The scoring pillars in §4 remain current.
+
 # ---
 
 **Specification: git-sniff CLI & Microservice Engine**
