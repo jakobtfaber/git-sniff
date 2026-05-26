@@ -13,12 +13,21 @@
 
     const pathParts = window.location.pathname.split('/').filter(Boolean);
     if (pathParts.length < 2) return; // Not a repository main or subpage
-    
-    // Ignore special non-repository GitHub paths at the root (settings, explore, etc.)
-    const ignoredRoots = new Set(['settings', 'explore', 'trending', 'marketplace', 'issues', 'pulls', 'notifications']);
-    if (ignoredRoots.has(pathParts[0])) return;
 
-    const [owner, repo] = pathParts;
+    // Reserved GitHub root paths that are not user/org repositories.
+    const ignoredRoots = new Set([
+      'settings', 'explore', 'trending', 'marketplace', 'issues', 'pulls',
+      'notifications', 'login', 'logout', 'join', 'signup', 'sessions',
+      'new', 'organizations', 'account', 'apps', 'codespaces', 'topics',
+      'sponsors', 'about', 'pricing', 'features', 'contact', 'security',
+      'search', 'dashboard', 'watching', 'stars', 'collections', 'events',
+      'copilot', 'github-copilot'
+    ]);
+    if (ignoredRoots.has(pathParts[0].toLowerCase())) return;
+
+    const owner = pathParts[0];
+    const repo = pathParts[1].replace(/\.git$/, '');
+    if (!repo) return;
 
     // Create mount point in light DOM
     const shadowHost = document.createElement('div');
@@ -259,7 +268,11 @@
     });
   }
 
-  // SPA navigation: coalesce Turbo, pjax, and React history.pushState signals; re-render only on path change.
+  // SPA navigation: re-render only when the path changes. A content script's
+  // isolated world cannot intercept GitHub's main-world history.pushState, so
+  // detection relies on real cross-world signals (turbo:load, pjax:end,
+  // popstate) plus a lightweight location poll that catches any remaining
+  // React soft navigations.
   let lastPath = null;
 
   function reinitIfChanged() {
@@ -276,19 +289,10 @@
     navDebounce = setTimeout(reinitIfChanged, 150);
   }
 
-  for (const method of ['pushState', 'replaceState']) {
-    const original = history[method];
-    history[method] = function (...args) {
-      const result = original.apply(this, args);
-      window.dispatchEvent(new Event('git-sniff:locationchange'));
-      return result;
-    };
-  }
-
-  window.addEventListener('git-sniff:locationchange', scheduleReinit);
   window.addEventListener('popstate', scheduleReinit);
   document.addEventListener('turbo:load', scheduleReinit);
   document.addEventListener('pjax:end', scheduleReinit);
+  setInterval(reinitIfChanged, 700);
 
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
     reinitIfChanged();
