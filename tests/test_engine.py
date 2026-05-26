@@ -1,5 +1,10 @@
+import pytest
+import httpx
+import git_sniff.engine as engine_mod
+from git_sniff.engine import evaluate, evaluate_detailed, parse_repo, Evaluation
 from git_sniff.schemas import (
-    GitSniffError, BadRepoError, RepoNotFoundError, RateLimitedError, EngineError
+    GitSniffError, BadRepoError, RepoNotFoundError, RateLimitedError, EngineError,
+    RepoScorecard,
 )
 
 
@@ -7,13 +12,6 @@ def test_error_hierarchy():
     for cls in (BadRepoError, RepoNotFoundError, RateLimitedError, EngineError):
         assert issubclass(cls, GitSniffError)
     assert issubclass(GitSniffError, Exception)
-
-
-import pytest
-import httpx
-import git_sniff.engine as engine_mod
-from git_sniff.engine import evaluate, evaluate_detailed, parse_repo, Evaluation
-from git_sniff.schemas import RepoScorecard, BadRepoError, RepoNotFoundError, RateLimitedError
 
 
 class FakeClient:
