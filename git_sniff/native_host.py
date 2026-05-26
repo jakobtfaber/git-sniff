@@ -1,8 +1,12 @@
 import sys
+import os
 import json
 import struct
 import asyncio
 import logging
+import shutil
+import argparse
+from pathlib import Path
 from typing import Optional
 
 from git_sniff.engine import evaluate
@@ -14,6 +18,79 @@ logger = logging.getLogger("git_sniff.native_host")
 
 HOST_TIMEOUT = 30
 MAX_MESSAGE_BYTES = 1 << 20
+
+HOST_NAME = "com.jakobtfaber.git_sniff"
+EXTENSION_ID = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"  # placeholder; set in Task 9
+CHROME_NM_DIR = (
+    Path.home()
+    / "Library" / "Application Support" / "Google" / "Chrome" / "NativeMessagingHosts"
+)
+
+
+def manifest_path() -> Path:
+    return CHROME_NM_DIR / f"{HOST_NAME}.json"
+
+
+def host_binary_path() -> Optional[str]:
+    found = shutil.which("git-sniff-host")
+    return os.path.realpath(found) if found else None
+
+
+def build_manifest(path: str) -> dict:
+    return {
+        "name": HOST_NAME,
+        "description": "git-sniff native messaging host",
+        "path": path,
+        "type": "stdio",
+        "allowed_origins": [f"chrome-extension://{EXTENSION_ID}/"],
+    }
+
+
+def install() -> None:
+    path = host_binary_path()
+    if not path:
+        raise SystemExit(
+            "git-sniff-host not found on PATH. Run: pip install -e . in the git-sniff repo."
+        )
+    CHROME_NM_DIR.mkdir(parents=True, exist_ok=True)
+    target = manifest_path()
+    tmp = target.with_name(target.name + ".tmp")
+    tmp.write_text(json.dumps(build_manifest(path), indent=2))
+    os.replace(tmp, target)
+    print(f"Installed native host manifest: {target}")
+    print(f"  path:           {path}")
+    print(f"  allowed origin: chrome-extension://{EXTENSION_ID}/")
+
+
+def uninstall() -> None:
+    target = manifest_path()
+    try:
+        target.unlink()
+        print(f"Removed {target}")
+    except FileNotFoundError:
+        print(f"Nothing to remove at {target}")
+
+
+def status() -> None:
+    target = manifest_path()
+    print(f"Host name:        {HOST_NAME}")
+    print(f"Expected origin:  chrome-extension://{EXTENSION_ID}/")
+    print(f"Manifest path:    {target}")
+    binary = host_binary_path()
+    print(f"Resolved binary:  {binary or '(git-sniff-host not on PATH)'}")
+    if binary:
+        print(f"  exists/executable: {os.path.isfile(binary) and os.access(binary, os.X_OK)}")
+    if not target.exists():
+        print("Manifest: NOT INSTALLED (run: git-sniff-host --install)")
+        return
+    data = json.loads(target.read_text())
+    origins = data.get("allowed_origins", [])
+    expected = f"chrome-extension://{EXTENSION_ID}/"
+    if expected in origins:
+        print("Origin: OK (matches expected extension ID)")
+    else:
+        print(f"Origin: DRIFT/MISMATCH — manifest has {origins}, expected {expected}")
+    print(f"Registered path: {data.get('path')}")
 
 
 def encode_message(obj) -> bytes:
@@ -69,4 +146,21 @@ def run_host() -> None:
 
 
 def main():
-    run_host()
+    parser = argparse.ArgumentParser(
+        prog="git-sniff-host",
+        description="git-sniff Chrome Native Messaging host.",
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--install", action="store_true", help="Write/update the Chrome native-host manifest.")
+    group.add_argument("--uninstall", action="store_true", help="Remove the manifest.")
+    group.add_argument("--status", action="store_true", help="Print manifest/host/origin status.")
+    args, _ = parser.parse_known_args()
+
+    if args.install:
+        install()
+    elif args.uninstall:
+        uninstall()
+    elif args.status:
+        status()
+    else:
+        run_host()

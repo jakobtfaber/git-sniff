@@ -117,3 +117,52 @@ def test_read_message_rejects_oversize_length():
     framed = struct.pack("@I", nh.MAX_MESSAGE_BYTES + 1)
     with pytest.raises(ValueError):
         nh.read_message(io.BytesIO(framed))
+
+
+import os
+from pathlib import Path
+
+
+def test_build_manifest_shape():
+    m = nh.build_manifest("/abs/path/git-sniff-host")
+    assert m["name"] == nh.HOST_NAME
+    assert m["type"] == "stdio"
+    assert m["path"] == "/abs/path/git-sniff-host"
+    assert m["allowed_origins"] == [f"chrome-extension://{nh.EXTENSION_ID}/"]
+    assert set(m) == {"name", "description", "path", "type", "allowed_origins"}
+
+
+def test_install_writes_manifest(monkeypatch, tmp_path):
+    monkeypatch.setattr(nh, "CHROME_NM_DIR", tmp_path)
+    monkeypatch.setattr(nh, "host_binary_path", lambda: "/abs/bin/git-sniff-host")
+    nh.install()
+    target = tmp_path / f"{nh.HOST_NAME}.json"
+    assert target.exists()
+    written = json.loads(target.read_text())
+    assert written["path"] == "/abs/bin/git-sniff-host"
+    assert written["allowed_origins"] == [f"chrome-extension://{nh.EXTENSION_ID}/"]
+    # idempotent + no temp file left behind
+    nh.install()
+    assert list(tmp_path.glob("*.tmp")) == []
+
+
+def test_uninstall_removes_manifest(monkeypatch, tmp_path):
+    monkeypatch.setattr(nh, "CHROME_NM_DIR", tmp_path)
+    monkeypatch.setattr(nh, "host_binary_path", lambda: "/abs/bin/git-sniff-host")
+    nh.install()
+    nh.uninstall()
+    assert not (tmp_path / f"{nh.HOST_NAME}.json").exists()
+    nh.uninstall()  # idempotent, no error
+
+
+def test_status_reports_origin_drift(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(nh, "CHROME_NM_DIR", tmp_path)
+    monkeypatch.setattr(nh, "host_binary_path", lambda: "/abs/bin/git-sniff-host")
+    target = tmp_path / f"{nh.HOST_NAME}.json"
+    target.write_text(json.dumps({
+        "name": nh.HOST_NAME, "description": "x", "path": "/abs/bin/git-sniff-host",
+        "type": "stdio", "allowed_origins": ["chrome-extension://stalewrongidstalewrongidstale/"],
+    }))
+    nh.status()
+    out = capsys.readouterr().out.lower()
+    assert "drift" in out or "mismatch" in out
