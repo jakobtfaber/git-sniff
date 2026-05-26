@@ -1,7 +1,10 @@
+import asyncio
 import pytest
 from fastapi.testclient import TestClient
 
+import git_sniff.main as main_mod
 import git_sniff.server as server_mod
+from git_sniff.engine import Evaluation
 from git_sniff.schemas import (
     RepoScorecard, PillarScores,
     BadRepoError, RepoNotFoundError, RateLimitedError, EngineError,
@@ -51,3 +54,27 @@ def test_server_bad_format_short_circuits(monkeypatch):
     with TestClient(server_mod.app) as tc:
         r = tc.get("/sniff", params={"repo": "noslash"})
     assert r.status_code == 400
+
+
+def test_cli_uses_engine(monkeypatch, capsys):
+    called = {}
+
+    async def fake_detailed(owner, repo, *, token=None, http_client=None):
+        called["args"] = (owner, repo)
+        return Evaluation(
+            scorecard=_scorecard(),
+            descriptions={
+                "maintenance": "median 4 days",
+                "cicd": "workflows found",
+                "dependencies": "lean",
+                "bus_factor": "distributed",
+            },
+        )
+
+    monkeypatch.setattr(main_mod, "evaluate_detailed", fake_detailed)
+    monkeypatch.setattr(main_mod, "resolve_token", lambda: "ghp_x")
+    asyncio.run(main_mod.sniff_cli("acme/widget"))
+    out = capsys.readouterr().out
+    assert called["args"] == ("acme", "widget")
+    assert "GIT-SNIFF SCORECARD: acme/widget" in out
+    assert "median 4 days" in out

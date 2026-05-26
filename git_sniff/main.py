@@ -1,96 +1,50 @@
 import sys
-import os
 import argparse
 import asyncio
 import logging
-from typing import Optional
 
 import uvicorn
 from rich.console import Console
 
-from git_sniff.client import GitHubClient
-from git_sniff.metrics import (
-    calculate_maintenance_score,
-    calculate_cicd_score,
-    calculate_dependency_score,
-    calculate_bus_factor_score,
-    calculate_overall_score
-)
+from git_sniff.engine import evaluate_detailed, parse_repo
+from git_sniff.auth import resolve_token
+from git_sniff.schemas import BadRepoError, RepoNotFoundError, RateLimitedError, EngineError
 
 console = Console()
 logging.basicConfig(level=logging.WARNING)
 
+
 async def sniff_cli(repo: str):
-    """
-    CLI Execution Engine: retrieves stats, computes scores, and outputs a colored scorecard.
-    """
-    if "/" not in repo or len(repo.split("/")) != 2:
-        console.print("[bold red]Error: Invalid repository format. Please use 'owner/repo' (e.g. langchain-ai/deepagents)[/bold red]")
-        sys.exit(1)
-    
-    owner, repo_name = repo.split("/")
-    token = os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
-    
+    try:
+        owner, repo_name = parse_repo(repo)
+    except BadRepoError as e:
+        console.print(f"[bold red]Error: {e}[/bold red]")
+        sys.exit(2)
+
     with console.status(f"[bold blue]Sniffing repository {owner}/{repo_name}...[/bold blue]"):
         try:
-            async with GitHubClient(token=token) as client:
-                # 1. Fetch Repository Metadata
-                meta = await client.fetch_repo_metadata(owner, repo_name)
-                default_branch = meta.get("default_branch", "main")
-                stars = meta.get("stargazers_count", 0)
-                open_issues = meta.get("open_issues_count", 0)
-
-                # Fetch ingestion tasks concurrently using asyncio.gather
-                issues_task = client.fetch_issues(owner, repo_name)
-                tree_task = client.fetch_file_tree(owner, repo_name, default_branch)
-                status_task = client.fetch_commit_status(owner, repo_name, default_branch)
-                commits_task = client.fetch_commits(owner, repo_name, per_page=50)
-                contribs_task = client.fetch_contributors(owner, repo_name)
-
-                issues, file_paths, status, commits, contributors = await asyncio.gather(
-                    issues_task, tree_task, status_task, commits_task, contribs_task
-                )
-
-                # Fallback for contributor stats if compilation timed out or failed
-                if not contributors:
-                    fallback_commits = await client.fetch_commits(owner, repo_name, per_page=100)
-                    author_commits = {}
-                    for c in fallback_commits:
-                        login = (c.get("author") or {}).get("login")
-                        name_info = (c.get("commit") or {}).get("author") or {}
-                        identifier = login or name_info.get("name") or "unknown"
-                        author_commits[identifier] = author_commits.get(identifier, 0) + 1
-                    
-                    contributors = [{"login": k, "contributions": v} for k, v in author_commits.items()]
-
-                # Calculate dependencies count
-                deps_count, pyproject_linting = await client.calculate_dependencies_count(
-                    owner, repo_name, default_branch, file_paths
-                )
-
-                # Calculate Pillars
-                m_score, m_desc = calculate_maintenance_score(issues, stars, open_issues)
-                c_score, c_desc = calculate_cicd_score(file_paths, status, pyproject_linting)
-                d_score, d_desc = calculate_dependency_score(commits, deps_count, file_paths)
-                b_score, b_desc = calculate_bus_factor_score(contributors)
-
-                # Calculate Overall Scorecard
-                overall, scorecard_status, recommendation = calculate_overall_score(
-                    maintenance=m_score,
-                    cicd=c_score,
-                    dependencies=d_score,
-                    bus_factor=b_score
-                )
-                
-                # Check for rate limits
-                limit_warning = client.get_rate_limit_warning()
-        
-        except ValueError as e:
-            console.print(f"[bold red]Error: {str(e)}[/bold red]")
+            result = await evaluate_detailed(owner, repo_name, token=resolve_token())
+        except RateLimitedError as e:
+            console.print(f"[bold yellow]{e}[/bold yellow]")
             sys.exit(1)
-        except Exception as e:
-            console.print(f"[bold red]Unexpected Ingestion Error: {str(e)}[/bold red]")
+        except (RepoNotFoundError, EngineError) as e:
+            console.print(f"[bold red]Error: {e}[/bold red]")
             sys.exit(1)
+
+    card = result.scorecard
+    desc = result.descriptions
+    overall = card.overall_score
+    scorecard_status = card.status
+    recommendation = card.recommendation
+    limit_warning = card.rate_limit_warning
+    m_score = card.breakdown.maintenance
+    c_score = card.breakdown.cicd
+    d_score = card.breakdown.dependencies
+    b_score = card.breakdown.bus_factor
+    m_desc = desc["maintenance"]
+    c_desc = desc["cicd"]
+    d_desc = desc["dependencies"]
+    b_desc = desc["bus_factor"]
 
     # Helper formatters
     def get_color_tag(score_val: int) -> str:
