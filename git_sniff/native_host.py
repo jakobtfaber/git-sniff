@@ -13,6 +13,7 @@ logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
 logger = logging.getLogger("git_sniff.native_host")
 
 HOST_TIMEOUT = 30
+MAX_MESSAGE_BYTES = 1 << 20
 
 
 def encode_message(obj) -> bytes:
@@ -25,6 +26,8 @@ def read_message(stream) -> Optional[dict]:
     if len(raw_len) < 4:
         return None
     (length,) = struct.unpack("@I", raw_len)
+    if length > MAX_MESSAGE_BYTES:
+        raise ValueError(f"Incoming message length {length} exceeds {MAX_MESSAGE_BYTES} bytes.")
     data = stream.read(length)
     return json.loads(data.decode("utf-8"))
 
@@ -35,10 +38,12 @@ def write_message(stream, obj) -> None:
 
 
 async def _handle(stdin_buf, stdout_buf) -> None:
-    message = read_message(stdin_buf)
-    if message is None:
-        return
     try:
+        message = read_message(stdin_buf)
+        if message is None:
+            return
+        if not isinstance(message, dict):
+            raise BadRepoError("Request must be a JSON object with 'owner' and 'repo'.")
         owner = message.get("owner")
         repo = message.get("repo")
         if not owner or not repo:

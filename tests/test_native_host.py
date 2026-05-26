@@ -90,3 +90,30 @@ def test_handle_timeout(monkeypatch):
     stdout.seek(0)
     reply = nh.read_message(stdout)
     assert "timed out" in reply["error"].lower()
+
+
+def test_handle_malformed_json_becomes_error(monkeypatch):
+    monkeypatch.setattr(nh, "resolve_token", lambda: None)
+    payload = b"{not valid json"
+    framed = struct.pack("@I", len(payload)) + payload
+    stdin = io.BytesIO(framed)
+    stdout = io.BytesIO()
+    asyncio.run(nh._handle(stdin, stdout))
+    stdout.seek(0)
+    reply = nh.read_message(stdout)
+    assert "error" in reply
+
+
+def test_handle_non_dict_payload_becomes_error(monkeypatch):
+    monkeypatch.setattr(nh, "resolve_token", lambda: None)
+    stdin = io.BytesIO(nh.encode_message(["not", "a", "dict"]))
+    stdout = io.BytesIO()
+    asyncio.run(nh._handle(stdin, stdout))
+    stdout.seek(0)
+    assert "error" in nh.read_message(stdout)
+
+
+def test_read_message_rejects_oversize_length():
+    framed = struct.pack("@I", nh.MAX_MESSAGE_BYTES + 1)
+    with pytest.raises(ValueError):
+        nh.read_message(io.BytesIO(framed))
