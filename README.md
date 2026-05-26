@@ -32,6 +32,11 @@ git-sniff langchain-ai/deepagents
 ```
 
 ### 2. Server Mode
+
+> **Deprecated.** The Chrome extension no longer uses this HTTP server — it uses Chrome
+> Native Messaging (see below). `--server` is retained only for CLI scripting / curl and
+> will be removed once `skills/repo-hygiene/scripts/sniff.sh` migrates off HTTP.
+
 Launch the local FastAPI background microservice:
 ```bash
 git-sniff --server
@@ -42,6 +47,24 @@ To query the microservice:
 ```bash
 curl "http://127.0.0.1:8000/sniff?repo=langchain-ai/deepagents"
 ```
+
+### 3. Chrome extension (Native Messaging)
+
+The extension talks to a local host that Chrome spawns on demand — no server, no open
+port. Register the host once:
+
+```bash
+pip install -e .            # provides the git-sniff-host binary
+git-sniff-host --install    # writes the Chrome native-host manifest
+git-sniff-host --status     # verify path + allowed origin
+```
+
+Then load `extension/` unpacked at `chrome://extensions`. The host reads its GitHub token
+from the macOS Keychain (service `Agents`, account `github-pat`), falling back to the
+`GITHUB_PERSONAL_ACCESS_TOKEN` environment variable.
+
+Re-run `git-sniff-host --install` after any Python/venv reinstall (the manifest records an
+absolute path that a reinstall can invalidate). `git-sniff-host --uninstall` removes it.
 
 ---
 
