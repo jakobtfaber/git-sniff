@@ -21,15 +21,19 @@ async def sniff_cli(repo: str):
         console.print(f"[bold red]Error: {e}[/bold red]")
         sys.exit(2)
 
+    error_text = None
+    error_style = None
     with console.status(f"[bold blue]Sniffing repository {owner}/{repo_name}...[/bold blue]"):
         try:
             result = await evaluate_detailed(owner, repo_name, token=resolve_token())
         except RateLimitedError as e:
-            console.print(f"[bold yellow]{e}[/bold yellow]")
-            sys.exit(1)
+            error_text, error_style = str(e), "bold yellow"
         except (RepoNotFoundError, EngineError) as e:
-            console.print(f"[bold red]Error: {e}[/bold red]")
-            sys.exit(1)
+            error_text, error_style = f"Error: {e}", "bold red"
+
+    if error_text is not None:
+        console.print(f"[{error_style}]{error_text}[/{error_style}]")
+        sys.exit(1)
 
     card = result.scorecard
     desc = result.descriptions

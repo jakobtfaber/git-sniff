@@ -18,6 +18,7 @@ from git_sniff.schemas import (
     RepoScorecard,
     PillarScores,
     BadRepoError,
+    GitSniffError,
     RepoNotFoundError,
     RateLimitedError,
     EngineError,
@@ -115,7 +116,7 @@ async def evaluate_detailed(
             return await _orchestrate(client, owner, repo)
         async with GitHubClient(token=token) as client:
             return await _orchestrate(client, owner, repo)
-    except RepoNotFoundError:
+    except GitSniffError:
         raise
     except ValueError as e:
         raise RepoNotFoundError(str(e)) from e

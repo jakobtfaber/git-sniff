@@ -117,6 +117,8 @@ def read_message(stream) -> Optional[dict]:
     if length > MAX_MESSAGE_BYTES:
         raise ValueError(f"Incoming message length {length} exceeds {MAX_MESSAGE_BYTES} bytes.")
     data = stream.read(length)
+    if len(data) < length:
+        raise ValueError(f"Truncated message: expected {length} bytes, got {len(data)}.")
     return json.loads(data.decode("utf-8"))
 
 

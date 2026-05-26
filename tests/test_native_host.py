@@ -200,3 +200,9 @@ def test_status_reports_path_drift(monkeypatch, tmp_path, capsys):
     nh.status()
     out = capsys.readouterr().out.lower()
     assert "path: drift" in out
+
+
+def test_read_message_truncated_body_raises():
+    framed = struct.pack("@I", 50) + b"short"
+    with pytest.raises(ValueError):
+        nh.read_message(io.BytesIO(framed))
