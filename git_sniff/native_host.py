@@ -55,8 +55,12 @@ def install() -> None:
     CHROME_NM_DIR.mkdir(parents=True, exist_ok=True)
     target = manifest_path()
     tmp = target.with_name(target.name + ".tmp")
-    tmp.write_text(json.dumps(build_manifest(path), indent=2))
-    os.replace(tmp, target)
+    try:
+        tmp.write_text(json.dumps(build_manifest(path), indent=2))
+        os.replace(tmp, target)
+    except Exception:
+        tmp.unlink(missing_ok=True)
+        raise
     print(f"Installed native host manifest: {target}")
     print(f"  path:           {path}")
     print(f"  allowed origin: chrome-extension://{EXTENSION_ID}/")
@@ -83,14 +87,21 @@ def status() -> None:
     if not target.exists():
         print("Manifest: NOT INSTALLED (run: git-sniff-host --install)")
         return
-    data = json.loads(target.read_text())
+    try:
+        data = json.loads(target.read_text())
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"Manifest: INVALID ({e})")
+        return
     origins = data.get("allowed_origins", [])
     expected = f"chrome-extension://{EXTENSION_ID}/"
     if expected in origins:
         print("Origin: OK (matches expected extension ID)")
     else:
         print(f"Origin: DRIFT/MISMATCH — manifest has {origins}, expected {expected}")
-    print(f"Registered path: {data.get('path')}")
+    registered = data.get("path")
+    print(f"Registered path: {registered}")
+    if binary and registered != binary:
+        print(f"Path: DRIFT — manifest path {registered} != resolved binary {binary} (re-run --install)")
 
 
 def encode_message(obj) -> bytes:

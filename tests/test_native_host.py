@@ -166,3 +166,37 @@ def test_status_reports_origin_drift(monkeypatch, tmp_path, capsys):
     nh.status()
     out = capsys.readouterr().out.lower()
     assert "drift" in out or "mismatch" in out
+
+
+def test_install_cleans_tmp_on_failure(monkeypatch, tmp_path):
+    monkeypatch.setattr(nh, "CHROME_NM_DIR", tmp_path)
+    monkeypatch.setattr(nh, "host_binary_path", lambda: "/abs/bin/git-sniff-host")
+
+    def boom(*a, **k):
+        raise OSError("disk full")
+    monkeypatch.setattr(nh.os, "replace", boom)
+    with pytest.raises(OSError):
+        nh.install()
+    assert list(tmp_path.glob("*.tmp")) == []
+    assert not (tmp_path / f"{nh.HOST_NAME}.json").exists()
+
+
+def test_status_handles_malformed_manifest(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(nh, "CHROME_NM_DIR", tmp_path)
+    monkeypatch.setattr(nh, "host_binary_path", lambda: "/abs/bin/git-sniff-host")
+    (tmp_path / f"{nh.HOST_NAME}.json").write_text("{not json")
+    nh.status()
+    out = capsys.readouterr().out.lower()
+    assert "invalid" in out
+
+
+def test_status_reports_path_drift(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(nh, "CHROME_NM_DIR", tmp_path)
+    monkeypatch.setattr(nh, "host_binary_path", lambda: "/new/bin/git-sniff-host")
+    (tmp_path / f"{nh.HOST_NAME}.json").write_text(json.dumps({
+        "name": nh.HOST_NAME, "description": "x", "path": "/old/bin/git-sniff-host",
+        "type": "stdio", "allowed_origins": [f"chrome-extension://{nh.EXTENSION_ID}/"],
+    }))
+    nh.status()
+    out = capsys.readouterr().out.lower()
+    assert "path: drift" in out
