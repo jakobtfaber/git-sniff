@@ -1,2 +1,0 @@
-[console_scripts]
-git-sniff = git_sniff.main:main
