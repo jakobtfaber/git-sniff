@@ -30,6 +30,7 @@ dev = [
 
 [project.scripts]
 git-sniff = "git_sniff.main:main"
+git-sniff-host = "git_sniff.native_host:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
